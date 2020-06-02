@@ -28,7 +28,6 @@ case "${ENVIRONMENT}" in
         echo "Deployment is production, setting the number of minimum tasks to ${SERVICE_MIN_TASKS}"
         export DEPLOYMENT_ENVIRONMENT=PRODUCTION
         echo "Deployment is production, setting the deployment environment to ${DEPLOYMENT_ENVIRONMENT}"
-        export LOGGING_LEVEL=INFO
         ;;
     *staging* | *stage*)
         export SERVICE_MAX_TASKS=1

@@ -90,11 +90,6 @@ Parameters:
     Type: String
     Description: The max capacity of the service tasks
     Default: 1000
-
-  LoggingLevel:
-    Type: String
-    Description: "The logging level of the app"
-    Default: "INFO"
   
   BackendInternalPort:
     Type: String
