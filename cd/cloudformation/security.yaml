@@ -196,7 +196,7 @@ Resources:
       
 Outputs:
   
-  BackendServicSececurityGroup:
+  BackendServiceSececurityGroup:
     Description: The backend ecs service security group
     Value: !Ref BackendServicSececurityGroup
 
