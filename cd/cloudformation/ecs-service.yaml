@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  The ECS service, this template create an ECS Fargate service attached to 
+  application load balancer
+
+Parameters:
+
+  ComponentName:
+    Type: String
+    Description: The component name
+    Default: realworld
+
+  SubComponentName:
+    Type: String
+    Description: The sub-component name
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+  
+  Cluster:
+    Type: String
+    Description: The ECS cluster name
+
+  MinimumHealthyPercent:
+    Type: String
+    Description: The minimum healthy percent of the number of the running tasks
+    Default: 100
+
+  MaximumPercent:
+    Type: String
+    Description: The maximum number of tasks during a deployment
+    Default: 200
+  
+  DesiredNumberOfTasks:
+    Type: String
+    Description: The desired number of tasks
+    Default: 1
+
+  HealthCheckGracePeriodSeconds:
+    Type: String
+    Default: 300
+  
+  LaunchType:
+    Type: String
+    Description: The launch type of the ECS service (EC2 or FARGATE)
+    Default: FARGATE
+  
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id> 
+    Description: The subnets to attach to the service
+
+  EcsSecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The security groups to attach to the service
+
+  Port:
+    Type: String
+    Description: The container port
+
+  TargetGroupArn:
+    Type: String
+    Description: The target group arn of the ECS service
+
+  ContainerName:
+    Type: String
+    Description: The container name
+
+  TaskDefinition:
+    Type: String
+    Description: The ARN of the task definition 
+  
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - DEV
+      - PRODUCTION
+      - STAGING
+      - QA
+    Default: DEV
+
+  DeploymentArch:
+    Type: String
+    Description: The deployment architecture
+    AllowedValues:
+      - ECS
+      - EC2
+    Default: ECS
+
+Resources:
+
+  EcsService:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      DeploymentConfiguration:
+        MinimumHealthyPercent: !Ref MinimumHealthyPercent
+        MaximumPercent: !Ref MaximumPercent
+      DesiredCount: !Ref DesiredNumberOfTasks
+      # EnableECSManagedTags: true
+      LaunchType: !Ref LaunchType
+      LoadBalancers:
+        - TargetGroupArn: !Ref TargetGroupArn
+          ContainerPort: !Ref Port
+          ContainerName: !Ref ContainerName
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups: !Ref EcsSecurityGroups
+          Subnets: !Ref Subnets
+      # PropagateTags: SERVICE
+      SchedulingStrategy: REPLICA
+      ServiceName: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+      Tags:
+        - Key: NAME
+          Value: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+  EcsServiceName:
+    Description: The ECS service name
+    Value: !GetAtt EcsService.Name

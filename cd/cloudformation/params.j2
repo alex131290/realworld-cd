@@ -1,0 +1,39 @@
+[
+    {
+        "ParameterValue": "{{ env['BACKEND_ECR_IMAGE_TAG'] }}",
+        "ParameterKey": "BackendDockerImageVersion"
+    },
+    {
+        "ParameterValue": "{{ env['FRONTEND_ECR_IMAGE_TAG'] }}",
+        "ParameterKey": "FrontendDockerImageVersion"
+    },
+    {
+        "ParameterValue": "{{ env['S3_INFRA_BUCKET'] }}",
+        "ParameterKey": "InfraS3Bucket"
+    },
+    {
+        "ParameterValue": "{{ env['DEPLOYMENT_ENVIRONMENT'] }}",
+        "ParameterKey": "Environment"
+    },
+    {
+        "ParameterValue": "{{ env['DESIRED_NUMBER_OF_TASKS'] }}",
+        "ParameterKey": "DesiredNumberOfTasks"
+    },
+    {
+        "ParameterValue": "{{ env['DESIRED_VISIBLE_NUMBER_OF_TASKS'] }}",
+        "ParameterKey": "DesiredVisibleNumberOfTasks"
+    },
+    {
+        "ParameterValue": "{{ env['SERVICE_MAX_TASKS'] }}",
+        "ParameterKey": "ServiceMaxCapacity"
+    },
+    {
+        "ParameterValue": "{{ env['SERVICE_MIN_TASKS'] }}",
+        "ParameterKey": "ServiceMinCapacity"
+    },
+    {
+        "ParameterValue": "{{ env['LOGGING_LEVEL'] }}",
+        "ParameterKey": "LoggingLevel"
+    }
+    
+]

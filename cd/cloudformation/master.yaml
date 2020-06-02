@@ -1,0 +1,484 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: > 
+  realworld cluster deployment
+
+Parameters:
+
+  ComponentName:
+    Type: String
+    Description: The component name
+    Default: realworld
+
+  InfraS3Bucket:
+    Type: String
+    Description: The infra bucket name, this bucket holds the CF templates
+    Default: realworld-cloudformation-infra-templates
+
+  TaskMemory:
+    Type: String
+    Description: "The task memory"
+    Default: 1024
+  
+  TaskCpu:
+    Type: String
+    Description: "The task cpu"
+    Default: 512
+  
+  BackendDockerImageVersion:
+    Type: String
+    Description: "The api docker image version"
+    Default: "latest"
+
+  FrontendDockerImageVersion:
+    Type: String
+    Description: "The api docker image version"
+    Default: "latest"
+
+  MinimumHealthyPercent:
+    Type: String
+    Description: "The minimum healthy percent of the number of the running tasks"
+    Default: 100
+
+  MaximumPercent:
+    Type: String
+    Description: "The maximum number of tasks during a deployment"
+    Default: 200
+
+  DesiredNumberOfTasks:
+    Type: String
+    Description: "The desired number of tasks"
+    Default: 1
+
+  DesiredVisibleNumberOfTasks:
+    Type: String
+    Description: "The desired number of tasks"
+    Default: 1
+
+  HealthCheckGracePeriodSeconds:
+    Type: String
+    Default: 300
+
+  LaunchType:
+    Type: String
+    Description: "The launch type of the ECS service (EC2 or FARGATE)"
+    Default: "FARGATE"
+
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - DEV
+      - PRODUCTION
+      - STAGING
+      - QA
+    Default: DEV
+
+  DeploymentArch:
+    Type: String
+    Description: "The deployment architecture"
+    AllowedValues:
+      - ECS
+      - EC2
+    Default: ECS
+
+  ServiceMinCapacity:
+    Type: String
+    Description: The min capacity of the service tasks
+    Default: 1
+
+  ServiceMaxCapacity:
+    Type: String
+    Description: The max capacity of the service tasks
+    Default: 1000
+
+  LoggingLevel:
+    Type: String
+    Description: "The logging level of the app"
+    Default: "INFO"
+  
+  BackendInternalPort:
+    Type: String
+    Default: 8000
+
+  BackendExternalPort:
+    Type: String
+    Default: 80
+
+  FrontendInternalPort:
+    Type: String
+    Default: 4100
+
+  FrontendExternalPort:
+    Type: String
+    Default: 80
+
+  DbPort:
+    Type: String
+    Description: The DB Port
+    Default: 5432
+  
+  DbName:
+    Type: String
+    Default: backend
+
+  DBMasterUsername:
+    Type: String
+    Default: backend_user
+  
+  DBMasterUserPassword:
+    Type: String
+    Default: backend_password
+    NoEcho: true
+  
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Task Definition
+        Parameters:
+          - TaskMemory
+          - TaskCpu
+          - BackendDockerImageVersion
+          - FrontendDockerImageVersion
+          - BackendInternalPort
+          - BackendExternalPort
+          - FrontendInternalPort
+          - FrontendExternalPort
+      - Label:
+          default: ECS Service
+        Parameters:
+          - MinimumHealthyPercent
+          - MaximumPercent
+          - DesiredNumberOfTasks
+          - DesiredVisibleNumberOfTasks
+          - ServiceMinCapacity
+          - ServiceMaxCapacity
+          - HealthCheckGracePeriodSeconds
+          - LaunchType
+      - Label:
+          default: Tags
+        Parameters:
+          - Environment
+          - DeploymentArch 
+      - Label:
+          default: DB
+        Parameters:
+          - DbName
+          - DBMasterUsername
+          - DBMasterUserPassword 
+          - DbPort    
+      - Label:
+          default: Common
+        Parameters:
+          - ComponentName
+      - Label:
+          default: Cloudformation infra
+        Parameters:
+          - InfraS3Bucket
+
+Mappings:
+
+  AccountEnv:
+    PRODUCTION:
+      Name: ProdRegionMap
+      Route53HostedZoneName: "mydomain.com"
+    DEV:
+      Name: ProdRegionMap
+      Route53HostedZoneName: "mydomain.com"
+    QA:
+      Name: ProdRegionMap
+      Route53HostedZoneName: "mydomain.com"
+    STAGING:
+      Name: ProdRegionMap
+      Route53HostedZoneName: "mydomain.com"
+
+  EnvironmentToLower:
+    PRODUCTION:
+      env: "production"
+    QA:
+      env: "qa"
+    DEV:
+      env: "dev"
+    STAGING:
+      env: "staging"
+
+  ProdRegionMap:
+    us-east-1:
+      PublicSubnets: ["subnet-005f57de560a86175", "subnet-0f8d7e8aa5e5c8392"]
+      PrivateSubnets: ["subnet-06c6146b2e917a81d", "subnet-089680e037c773ce1"]
+      VPCId: vpc-06ee8fa5770e232bd
+      VpcCidr: 10.10.0.0/16
+      EcsSecurityGroups: ["sg-0efd689029d2771d0"]
+
+
+Resources:
+
+#### Security and Roles ####
+
+  Security:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        VPCId: !FindInMap
+            - !FindInMap [AccountEnv, !Ref Environment, Name]
+            - !Ref "AWS::Region"
+            - VPCId
+        VpcCidr: !FindInMap
+            - !FindInMap [AccountEnv, !Ref Environment, Name]
+            - !Ref "AWS::Region"
+            - VpcCidr
+        ComponentName: !Ref ComponentName
+        Environment: !Ref Environment
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        BackendAlbPort: !Ref BackendExternalPort
+        BackendServicePort: !Ref BackendInternalPort
+        FrontendAlbPort: !Ref FrontendExternalPort
+        FrontendServicePort: !Ref FrontendInternalPort
+        DbPort: !Ref DbPort
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/security.yaml"
+
+#####################################################################################################################
+
+#### Database ####
+
+  Database:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        DBInstanceClass: 'db.t2.micro'
+        DbName: !Ref DbName
+        DBMasterUsername: !Ref DBMasterUsername
+        DBMasterUserPassword: !Ref DBMasterUserPassword
+        ComponentName: !Ref ComponentName
+        Environment: !Ref Environment
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        EngineVersion: '11.1'
+        Port: !Ref DbPort
+        SecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.DbSecurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PrivateSubnets
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/rds.yaml"
+
+
+#####################################################################################################################
+
+#### Common resources ####
+
+  EcsCluster:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        Environment: !Ref Environment
+        DeploymentNumber: !Ref DeploymentNumber
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-cluster.yaml"
+
+##########################################################################################################################################
+
+#### Backend Service ####
+
+  BackendEcsTaskDefinition:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        TaskMemory: !Ref TaskMemory
+        TaskCpu: !Ref TaskCpu
+        SubComponentName: backend
+        ConfigBucket: !FindInMap [AccountEnv, !Ref Environment, ConfigBucket]
+        ContainerName: !Sub "${ComponentName}-backend"
+        DockerImageName: !Sub "${ComponentName}-backend"
+        DockerImageVersion: !Ref BackendDockerImageVersion
+        ComponentName: !Ref ComponentName
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        Environment: !Ref Environment
+        Port: !Ref BackendInternalPort
+        TasExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
+        DatabaseDns: !GetAtt Database.Outputs.DNSName
+        DatabaseUser: !Ref DBMasterUsername
+        DatabasePassword: !Ref DBMasterUserPassword
+        DatabaseName: !Ref DbName
+        DatabasePort: !Ref DbPort
+        HealthCheckPath: '/api/'
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/${DeploymentNumber}/backend-task-definition.yaml"
+
+  BackendEcsService:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        SubComponentName: backend
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        Cluster: !GetAtt EcsCluster.Outputs.ClusterName
+        MinimumHealthyPercent: !Ref MinimumHealthyPercent
+        MaximumPercent: !Ref MaximumPercent
+        DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
+        HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
+        LaunchType: !Ref LaunchType
+        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.BackendServicSececurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PrivateSubnets
+        TaskDefinition: !GetAtt BackendEcsTaskDefinition.Outputs.TaskDefinition
+        Environment: !Ref Environment
+        DeploymentArch: !Ref DeploymentArch
+        Port: !Ref BackendInternalPort
+        TargetGroupArn: !GetAtt BackendNetwork.Outputs.TargetGroupArn
+        ContainerName: !Sub "${ComponentName}-backend"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-service.yaml"
+
+  BackendNetwork:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        SubComponentName: backend
+        DeploymentNumber: !Ref DeploymentNumber
+        TargetPort: !Ref BackendInternalPort
+        ListenerPort: !Ref BackendExternalPort
+        SecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.BackendAlbSecurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PrivateSubnets
+        VPCId: !FindInMap
+            - !FindInMap [AccountEnv, !Ref Environment, Name]
+            - !Ref "AWS::Region"
+            - VPCId
+        Environment: !Ref Environment
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        HealthCheckPath: '/api/'
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/realworld-network.yaml"
+
+  BackendEcsAutoScalingPolicy:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EcsCluster: !GetAtt EcsCluster.Outputs.ClusterName 
+        ElbName: !GetAtt BackendNetwork.Outputs.ElbName
+        EcsServiceName: !GetAtt BackendEcsService.Outputs.EcsServiceName
+        ServiceMaxCapacity: !Ref ServiceMaxCapacity
+        ServiceMinCapacity: !Ref ServiceMinCapacity
+        LoadBalancerFullName: BackendNetwork.Outputs.ElbFullName
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/network-auto-scaling.yaml"
+
+
+##########################################################################################################################################
+
+
+#### Frontend Service ####
+
+  FrontendEcsTaskDefinition:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        TaskMemory: !Ref TaskMemory
+        TaskCpu: !Ref TaskCpu
+        SubComponentName: frontend
+        ConfigBucket: !FindInMap [AccountEnv, !Ref Environment, ConfigBucket]
+        ContainerName: !Sub "${ComponentName}-frontend"
+        DockerImageName: !Sub "${ComponentName}-frontend"
+        DockerImageVersion: !Ref FrontendDockerImageVersion
+        ComponentName: !Ref ComponentName
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        Environment: !Ref Environment
+        Port: !Ref FrontendInternalPort
+        HealthCheckPath: '/register'
+        BackendUrl:
+          Fn::Sub:
+            - "${BackendDns}/api"
+            - BackendDns: !Sub "!GetAtt BackendNetwork.Outputs.ElbDnsName"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/${DeploymentNumber}/frontend-task-definition.yaml"
+
+  FrontendEcsService:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        SubComponentName: frontend
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        Cluster: !GetAtt EcsCluster.Outputs.ClusterName
+        MinimumHealthyPercent: !Ref MinimumHealthyPercent
+        MaximumPercent: !Ref MaximumPercent
+        DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
+        HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
+        LaunchType: !Ref LaunchType
+        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendServicSececurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PrivateSubnets
+        TaskDefinition: !GetAtt FrontendEcsTaskDefinition.Outputs.TaskDefinition
+        Environment: !Ref Environment
+        DeploymentArch: !Ref DeploymentArch
+        Port: !Ref FrontendInternalPort
+        TargetGroupArn: !GetAtt FrontendNetwork.Outputs.TargetGroupArn
+        ContainerName: !Sub "${ComponentName}-frontend"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-service.yaml"
+
+  FrontendNetwork:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        SubComponentName: frontend
+        DeploymentNumber: !Ref DeploymentNumber
+        TargetPort: !Ref FrontendInternalPort
+        ListenerPort: !Ref FrontendExternalPort
+        SecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendAlbSecurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PublicSubnets
+        VPCId: !FindInMap
+            - !FindInMap [AccountEnv, !Ref Environment, Name]
+            - !Ref "AWS::Region"
+            - VPCId
+        Environment: !Ref Environment
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        HealthCheckPath: '/register'
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/realworld-network.yaml"
+
+  FrontendEcsAutoScalingPolicy:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        EcsCluster: !GetAtt EcsCluster.Outputs.ClusterName 
+        ElbName: !GetAtt FrontendNetwork.Outputs.ElbName
+        EcsServiceName: !GetAtt FrontendEcsService.Outputs.EcsServiceName
+        ServiceMaxCapacity: !Ref ServiceMaxCapacity
+        ServiceMinCapacity: !Ref ServiceMinCapacity
+        LoadBalancerFullName: FrontendNetwork.Outputs.ElbFullName
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/network-auto-scaling.yaml"
+
+
+##########################################################################################################################################
+
+
+Outputs:
+
+  FrontendUrl:
+    Description: The Frontend URL
+    Value:
+      Fn::Sub:
+      - "http://${DnsName}"
+      - DnsName: !GetAtt FrontendNetwork.Outputs.ElbDnsName
+

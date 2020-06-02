@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'RDS template'
+
+Parameters:
+
+  DBInstanceClass:
+    Description: 'The instance type of database server.'
+    Type: String
+    Default: 'db.t2.micro'
+
+  DBAllocatedStorage:
+    Default: '50'
+    Description: The size of the database (GiB)
+    Type: Number
+    MinValue: '5'
+    MaxValue: '1024'
+    ConstraintDescription: must be between 20 and 65536 GiB.
+
+  DbName:
+    Description: 'Name of the database (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: String
+    Default: api
+
+  DBBackupRetentionPeriod:
+    Description: 'The number of days to keep snapshots of the database.'
+    Type: Number
+    MinValue: 0
+    MaxValue: 35
+    Default: 30
+
+  DBMasterUsername:
+    Description: 'The master user name for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: Stringer
+
+  DBMasterUserPassword:
+    Description: 'The master password for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
+    Type: String
+    NoEcho: true
+
+  DBMultiAZ:
+    Description: 'Specifies if the database instance is deployed to multiple Availability Zones for HA.'
+    Type: String
+    Default: true
+    AllowedValues: [true, false]
+
+  PreferredBackupWindow:
+    Description: 'The daily time range in UTC during which you want to create automated backups.'
+    Type: String
+    Default: '09:54-10:24'
+
+  PreferredMaintenanceWindow:
+    Description: The weekly time range (in UTC) during which system maintenance can occur.
+    Type: String
+    Default: 'sat:07:00-sat:07:30'
+
+  EngineVersion:
+    Description: 'PostgreSQL version.'
+    Type: String
+    Default: '11.1'
+    AllowedValues: ['11.2', '11.1', '10.7', '10.6', '10.5', '10.4', '10.3', '10.1', '9.6.12', '9.6.5', '9.5.16', '9.4.25', '9.3.25'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
+
+  ComponentName:
+    Type: String
+    Description: The component name
+
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - QA
+      - DEV
+      - PRODUCTION
+      - STAGING
+    Default: DEV
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id> 
+    Description: The subnets to attach to the subnetgroup
+
+  SecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The security groups to attach to the service
+
+  Port:
+    Type: String
+    Default: 5432
+
+
+Resources:
+
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: 'API DB Subnet Group'
+      DBSubnetGroupName: !Sub "${ComponentName}-${LowerEnv}-db-subnet-group" 
+      SubnetIds: !Ref Subnets
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-db-subnet-group"
+        - Key: Environment
+          Value: !Ref Environment
+
+  DBInstance:
+    DeletionPolicy: Snapshot # default
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: !Ref DBAllocatedStorage
+      Port: !Ref Port
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: !Ref DBBackupRetentionPeriod
+      CopyTagsToSnapshot: true
+      DBInstanceClass: !Ref DBInstanceClass
+      DBName: !Ref DbName
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      Engine: postgres
+      EngineVersion: !Ref EngineVersion
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterUserPassword
+      MultiAZ: !Ref DBMultiAZ
+      PreferredBackupWindow: !Ref PreferredBackupWindow
+      PreferredMaintenanceWindow: !Ref PreferredMaintenanceWindow
+      StorageType: gp2
+      VPCSecurityGroups: !Ref SecurityGroups
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-rds"
+        - Key: Environment
+          Value: !Ref Environment
+
+Outputs:
+
+  InstanceName:
+    Description: 'The name of the database instance.'
+    Value: !Ref DBInstance
+
+  DNSName:
+    Description: 'The connection endpoint for the database.'
+    Value: !GetAtt 'DBInstance.Endpoint.Address'

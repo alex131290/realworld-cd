@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  The backend auto scaling and cloudwatch alarms
+
+Parameters:
+
+  EcsCluster:
+    Type: String
+    Description: The ECS cluster name
+  
+  ElbName:
+    Type: String
+    Description: The rest load balancer name
+  
+  EcsServiceName:
+    Type: String
+    Description: The ECS service name which serve as a target for autoscaling policies
+
+  ServiceMaxCapacity:
+    Type: String
+    Description: The max capacity of the service tasks
+    Default: 1000
+
+  ServiceMinCapacity:
+    Type: String
+    Description: The max capacity of the service tasks
+    Default: 1
+
+  LoadBalancerFullName:
+    Type: String
+    Description: The load balancer full name, in this format app/<elb name>/<the last portion of the ARN>
+
+  IsNetwork:
+    Type: String
+    Default: ''
+
+Conditions:
+  IsNetwork: !Equals [!Ref IsNetwork, "true"]
+
+Resources:
+
+  StepScalingPolicyRequestCount:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: !Sub "${ElbName}-Request-Count"
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref ServiceAutoScalingTarget
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ExactCapacity
+        Cooldown: 30
+        # MetricAggregationType: Average
+        # MinAdjustmentMagnitude: 
+        StepAdjustments:
+        - MetricIntervalUpperBound: 190
+          ScalingAdjustment: 1
+        - MetricIntervalLowerBound: 190
+          MetricIntervalUpperBound: 390
+          ScalingAdjustment: 2
+        - MetricIntervalLowerBound: 390
+          MetricIntervalUpperBound: 590
+          ScalingAdjustment: 3
+        - MetricIntervalLowerBound: 590
+          MetricIntervalUpperBound: 790
+          ScalingAdjustment: 4
+        - MetricIntervalLowerBound: 790
+          MetricIntervalUpperBound: 990
+          ScalingAdjustment: 5
+        # - MetricIntervalUpperBound: 990
+        #   ScalingAdjustment: 5
+        - MetricIntervalLowerBound: 990
+          MetricIntervalUpperBound: 1990
+          ScalingAdjustment: 10
+        - MetricIntervalLowerBound: 1990
+          MetricIntervalUpperBound: 2990
+          ScalingAdjustment: 15
+        - MetricIntervalLowerBound: 2990
+          MetricIntervalUpperBound: 3990
+          ScalingAdjustment: 20
+        - MetricIntervalLowerBound: 3990
+          MetricIntervalUpperBound: 4990
+          ScalingAdjustment: 25
+        - MetricIntervalLowerBound: 4990
+          MetricIntervalUpperBound: 5990
+          ScalingAdjustment: 30
+        - MetricIntervalLowerBound: 5990
+          MetricIntervalUpperBound: 6990
+          ScalingAdjustment: 35
+        - MetricIntervalLowerBound: 6990
+          MetricIntervalUpperBound: 7990
+          ScalingAdjustment: 40
+        - MetricIntervalLowerBound: 7990
+          MetricIntervalUpperBound: 8990
+          ScalingAdjustment: 45
+        - MetricIntervalLowerBound: 8990
+          MetricIntervalUpperBound: 9990
+          ScalingAdjustment: 50
+        - MetricIntervalLowerBound: 9990
+          MetricIntervalUpperBound: 10990
+          ScalingAdjustment: 55
+        - MetricIntervalLowerBound: 10990
+          MetricIntervalUpperBound: 11990
+          ScalingAdjustment: 60
+        - MetricIntervalLowerBound: 11990
+          MetricIntervalUpperBound: 12990
+          ScalingAdjustment: 65
+        - MetricIntervalLowerBound: 12990
+          MetricIntervalUpperBound: 13990
+          ScalingAdjustment: 70
+        - MetricIntervalLowerBound: 13990
+          MetricIntervalUpperBound: 14990
+          ScalingAdjustment: 75
+        # - MetricIntervalLowerBound: 14990
+        #   MetricIntervalUpperBound: 15990
+        #   ScalingAdjustment: 80
+        # - MetricIntervalLowerBound: 15990
+        #   MetricIntervalUpperBound: 16990
+        #   ScalingAdjustment: 85
+        # - MetricIntervalLowerBound: 16990
+        #   MetricIntervalUpperBound: 17990
+        #   ScalingAdjustment: 90
+        # - MetricIntervalLowerBound: 17990
+        #   MetricIntervalUpperBound: 18990
+        #   ScalingAdjustment: 95
+        - MetricIntervalLowerBound: 14990
+          ScalingAdjustment: 90
+        
+  ServiceAutoScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: !Ref ServiceMaxCapacity
+      MinCapacity: !Ref ServiceMinCapacity
+      ResourceId:
+        Fn::Sub:
+          - service/${EcsCluster}/${ServiceName}
+          - ServiceName: !Ref EcsServiceName
+      RoleARN: !GetAtt ScalingRole.Arn
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+
+  ScalingRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: !Sub "ScalingRole-${EcsServiceName}"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+              - application-autoscaling.amazonaws.com
+              - ecs.application-autoscaling.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+
+  ScalingRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      Roles:
+      - !Ref ScalingRole
+      PolicyName: !Sub "ScalingRolePolicy-${EcsServiceName}"
+      PolicyDocument: 
+          Version: '2012-10-17'
+          Statement: 
+            - Effect: Allow
+              Action:
+                - application-autoscaling:*
+                - ecs:RunTask
+                - ecs:UpdateSerice
+                - ecs:DescribeServices
+                - cloudwatch:PutMetricAlarm
+                - cloudwatch:DescribeAlarms
+                - cloudwatch:GetMetricStatistics
+                - cloudwatch:SetAlarmState
+                - cloudwatch:DeleteAlarms
+              Resource: '*'
+
+
+  ElbRequestCountAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      MetricName: !If [IsNetwork, ActiveFlowCount, RequestCount]
+      AlarmName: !Sub "${ElbName}-RequestCount-${EcsServiceName}"
+      AlarmDescription: !Sub "High Requests count in ${ElbName}"
+      Namespace: !If [IsNetwork, AWS/NetworkELB, AWS/ApplicationELB]
+      DatapointsToAlarm: 1
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 10
+      AlarmActions:
+        - !Ref StepScalingPolicyRequestCount
+      OKActions:
+        - !Ref StepScalingPolicyRequestCount
+      InsufficientDataActions:
+        - !Ref StepScalingPolicyRequestCount
+      Dimensions:
+      - Name: LoadBalancer
+        Value: !Ref LoadBalancerFullName
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+        

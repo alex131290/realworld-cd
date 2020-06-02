@@ -1,0 +1,221 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'Security configuration'
+Parameters:
+
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID
+
+  VpcCidr:
+    Type: String
+    Description: The VPC CIDR
+
+  BackendAlbPort:
+    Type: String
+    Description: The backend ALB Port
+    Default: 80
+
+  BackendServicePort:
+    Type: String
+    Description: The backend ECS service Port
+    Default: 8000
+
+  FrontendAlbPort:
+    Type: String
+    Description: The frontend ALB Port
+    Default: 80
+
+  FrontendServicePort:
+    Type: String
+    Description: The frontend ECS service Port
+    Default: 4100
+
+  DbPort:
+    Type: String
+    Description: The DB Port
+    Default: 5432
+
+  ComponentName:
+    Type: String
+    Description: The component name
+
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - QA
+      - DEV
+      - PRODUCTION
+      - STAGING
+    Default: DEV
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+
+Resources:
+
+#### Backend Service security group ####
+
+  BackendServicSececurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Enable access to the backend ecs service'
+      VpcId: !Ref 'VPCId'
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-backend-service"
+        - Key: Environment
+          Value: !Ref Environment
+
+
+#### Backend ALB security group ####
+
+  BackendAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Enable access to the backend alb'
+      VpcId: !Ref 'VPCId'
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-backend-alb"
+        - Key: Environment
+          Value: !Ref Environment
+
+#### Frontend service security group ####
+
+  FrontendServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Enable access to the frontend ecs service'
+      VpcId: !Ref 'VPCId'
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-frontend-service"
+        - Key: Environment
+          Value: !Ref Environment
+
+#### Frontend ALB security group ####
+
+  FrontendAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Enable access to the frontend alb'
+      VpcId: !Ref 'VPCId'
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-frontend-alb"
+        - Key: Environment
+          Value: !Ref Environment
+
+
+#### DB security group ####
+
+  DbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: 'Enable access to Db'
+      VpcId: !Ref 'VPCId'
+      Tags:
+        - Key: Name
+          Value: !Sub "${ComponentName}-${LowerEnv}-db"
+        - Key: Environment
+          Value: !Ref Environment
+
+#### Ingress Rules ####
+
+  DbIngressApi:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref DbSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref DbPort
+      ToPort: !Ref DbPort
+      SourceSecurityGroupId: !Ref BackendServicSececurityGroup
+      Description: Allow access to the DB on the DB port to the Backend ECS Service
+
+
+  BackendServiceIngressApi:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref BackendServicSececurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref BackendServicePort
+      ToPort: !Ref BackendServicePort
+      SourceSecurityGroupId: !Ref BackendAlbSecurityGroup
+      Description: Allow access to the Backend ECS Service on the Backend port to the Backend ALB
+
+  BackendAlbIngressFrontend:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref BackendAlbSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref BackendAlbPort
+      ToPort: !Ref BackendAlbPort
+      SourceSecurityGroupId: !Ref FrontendServiceSecurityGroup
+      Description: Allow access to the Backend ALB on the Backend port to the Frontend ECS Service
+
+  FrontendServiceIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref FrontendServiceSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref FrontendServicePort
+      ToPort: !Ref FrontendServicePort
+      SourceSecurityGroupId: !Ref FrontendAlbSecurityGroup
+      Description: Allow access to the Frontend ECS Service on the Frontend port to the Frontend ALB
+
+  FrontendAlbIngress:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref FrontendAlbSecurityGroup
+      IpProtocol: tcp
+      FromPort: !Ref FrontendAlbPort
+      ToPort: !Ref FrontendAlbPort
+      CidrIp: 0.0.0.0/0
+      Description: Allow access to the Frontend ALB on the Frontend port to the Internet
+
+#### IAM Roles ####
+
+  TaskExecutionRole: 
+    Type: AWS::IAM::Role
+    Properties: 
+      RoleName: !Sub "${ComponentName}-${LowerEnv}TaskExecutionRole"
+      ManagedPolicyArns:
+        - "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+      Path: /
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - Effect: Allow
+            Principal: 
+              Service: 
+                - ecs-tasks.amazonaws.com
+            Action: 
+              - sts:AssumeRole
+      
+Outputs:
+  
+  BackendServicSececurityGroup:
+    Description: The backend ecs service security group
+    Value: !Ref BackendServicSececurityGroup
+
+  BackendAlbSecurityGroup:
+    Description: The Backend ALB security group
+    Value: !Ref BackendAlbSecurityGroup
+
+  FrontendServiceSecurityGroup:
+    Description: The frontend ecs service security group
+    Value: !Ref FrontendServiceSecurityGroup
+
+  FrontendAlbSecurityGroup:
+    Description: The Frontend ALB security group
+    Value: !Ref FrontendAlbSecurityGroup
+
+  DbSecurityGroup:
+    Description: The DB security group
+    Value: !Ref DbSecurityGroup
+
+  TaskExecutionRoleArn:
+    Description: The ECS task execution role ARN
+    Value: !GetAtt TaskExecutionRole.Arn

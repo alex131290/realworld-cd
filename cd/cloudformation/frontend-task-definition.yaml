@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  The frontend ECS task definition
+Parameters:
+
+
+  ComponentName:
+    Type: String
+    Description: The component name
+
+  SubComponentName:
+    Type: String
+    Description: The sub-component name
+    Default: frontend
+
+  TaskMemory:
+    Type: String
+    Description: The task memory
+    Default: 1024
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+  
+  TaskCpu:
+    Type: String
+    Description: The task cpu
+    Default: 512
+  
+  ContainerName:
+    Type: String
+    Description: The container name
+  
+  DockerImageName:
+    Type: String
+    Description: The docker image name
+    Default: realworld-backend
+
+  DockerImageVersion:
+    Type: String
+    Description: The docker image version
+    Default: latest
+  
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - DEV
+      - PRODUCTION
+      - STAGING
+      - QA
+    Default: DEV
+
+  Port:
+    Type: String
+    Description: The container port
+    Default: 4100
+
+  TasExecutionRoleArn:
+    Type: String
+    Description: The task execution role ARN
+
+  BackendUrl:
+    Type: String
+    Description: The backend URL
+  
+  HealthCheckPath:
+    Type: String
+    Description: The healthcheck path
+  
+Resources: 
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: !Sub "/aws/ecs/${ComponentName}-${SubComponentName}-${LowerEnv}"
+      RetentionInDays: 7
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - "EC2"
+        - "FARGATE"
+      ExecutionRoleArn: !GetAtt TasExecutionRoleArn
+      Memory: !Ref TaskMemory
+      Cpu: !Ref TaskCpu
+     
+      ContainerDefinitions:
+        - Name: !Ref ContainerName
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${DockerImageName}:${DockerImageVersion}" 
+          PortMappings:
+          - 
+            ContainerPort: !Ref Port
+            Protocol: tcp
+          HealthCheck:
+            Command:
+            - CMD-SHELL
+            - !Sub "curl -f http://localhost:${Port}${HealthCheckPath} || exit 1"
+            Interval: 5
+            Retries: 3
+            StartPeriod: 120
+            Timeout: 60
+          Essential: true
+          Environment: 
+            - Name: API_ROOT
+              Value: !Ref BackendUrl
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref "AWS::Region"
+              awslogs-stream-prefix: "ecs"
+
+Outputs:
+  TaskDefinition:
+    Description: The task defintion ARN
+    Value: !Ref TaskDefinition

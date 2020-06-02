@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  The ECS cluster
+
+Parameters:
+
+  ComponentName:
+    Type: String
+    Description: The component name
+
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - DEV
+      - PRODUCTION
+      - STAGING
+      - QA
+    Default: DEV
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+  
+Resources: 
+
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Sub "${ComponentName}-${LowerEnv}"
+      Tags:
+        - Key: NAME
+          Value: !Sub "${ComponentName}-${LowerEnv}"
+        - Key: Environment
+          Value: !Ref Environment
+  
+
+Outputs:
+  ClusterName:
+    Description: The cluster name
+    Value: !Ref EcsCluster

@@ -1,0 +1,176 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >
+  The network -  loadbalancer, targetgroup and CNAME for the ELB
+
+Parameters:
+
+  ComponentName:
+    Type: String
+    Description: The component name
+
+  SubComponentName:
+    Type: String
+    Description: The sub-component name
+
+  TargetPort:
+    Type: String
+    Description: The container port
+
+  ListenerPort:
+    Type: String
+    Description: The container port
+  
+  Subnets:
+    Type: List<AWS::EC2::Subnet::Id> 
+    Description: The subnets to attach to the service
+
+  SecurityGroups:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: The security groups to attach to the service
+
+  # Route53HostedZoneName:
+  #   Type: String
+  #   Description: The hosted zone name which will be used to create the ELB CNAME
+
+  
+  VPCId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID
+    Default: vpc-35491750
+  
+  Environment:
+    Type: String
+    Description: The environment type
+    AllowedValues:
+      - DEV
+      - PRODUCTION
+      - STAGING
+      - QA
+    Default: DEV
+
+  LoadBalancerCertificateArn:
+    Type: String
+    Description: The certificate ARN of the domain
+    Default: ''
+
+  LowerEnv:
+    Type: String
+    Description: The environment type
+
+  IsPublic:
+    Type: String
+    Default: ''
+
+  IsNetwork:
+    Type: String
+    Default: ''
+
+  HealthCheckPath:
+    Type: String
+    Description: The healthcheck path of the target group
+
+Conditions:
+  IsPublic: !Equals [!Ref IsPublic, "true"]
+  IsNetwork: !Equals [!Ref IsNetwork, "true"]
+  HasLoadBalancerCertificateArn: !Not [!Equals [!Ref LoadBalancerCertificateArn, '']]
+
+Resources:
+
+  Elb:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+      IpAddressType: ipv4
+      Scheme: !If [IsPublic, internet-facing, internal]
+      # Scheme: internet-facing
+      SecurityGroups: !If [IsNetwork, !Ref 'AWS::NoValue' , !Ref SecurityGroups]
+      Subnets: !Ref Subnets
+      Type: !If [IsNetwork, network, application]
+      Tags:
+        - Key: NAME
+          Value: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+        - Key: Environment
+          Value: !Ref Environment
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthyThresholdCount: 3
+      UnhealthyThresholdCount: 3
+      HealthCheckPath: !If [IsNetwork, !Ref 'AWS::NoValue', !Ref HealthCheckPath]
+      Port: !Ref TargetPort
+      Name: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+      Protocol: !If [IsNetwork, TCP, HTTP]
+      TargetType: ip
+      VpcId: !Ref VPCId
+      Tags:
+        - Key: NAME
+          Value: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}"
+        - Key: Environment
+          Value: !Ref Environment
+
+  HttpListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+      - !If
+        - HasLoadBalancerCertificateArn
+        - Type: redirect
+          RedirectConfig:
+            Port: '443'
+            Protocol: HTTPS
+            StatusCode: 'HTTP_301'
+        - Type: "forward"
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref Elb
+      Port: !Ref ListenerPort
+      Protocol: !If [IsNetwork, TCP, HTTP]
+
+  HttpsListener:
+    Condition: HasLoadBalancerCertificateArn
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      Certificates:
+      - CertificateArn: !Ref LoadBalancerCertificateArn
+      DefaultActions:
+        - Type: "forward"
+          TargetGroupArn: !Ref TargetGroup
+      LoadBalancerArn: !Ref Elb
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: "ELBSecurityPolicy-2016-08"
+
+# Don't create it yet since we don't have a domain
+  # ElbCnameRecordSet:
+  #   Type: AWS::Route53::RecordSet
+  #   # Condition: CreateDNSRecordSet
+  #   Properties:
+  #     Comment: CNAME record for the ELB
+  #     HostedZoneName: !Sub "${Route53HostedZoneName}."
+  #     Name: !Sub "${ComponentName}-${SubComponentName}-${LowerEnv}.${Route53HostedZoneName}"
+  #     TTL: 900
+  #     Type: CNAME
+  #     ResourceRecords:
+  #       - !GetAtt Elb.DNSName
+
+Outputs:
+  TargetGroupArn:
+    Description: The target group ARN
+    Value: !Ref TargetGroup
+  ElbArn:
+    Description: The ELB ARN
+    Value: !Ref Elb
+  ElbDnsName: 
+    Description: The ELB DNS Name
+    Value: !GetAtt Elb.DNSName
+  ElbName:
+    Description: The ELB name
+    Value: !GetAtt Elb.LoadBalancerName
+  # ElbCnameRecordSet:
+  #   Description: The CNAME record of the ELB
+  #   Value: !Ref ElbCnameRecordSet
+  ElbFullName:
+    Description: The ELB full name
+    Value: !GetAtt Elb.LoadBalancerFullName
