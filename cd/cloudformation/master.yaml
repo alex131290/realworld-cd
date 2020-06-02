@@ -291,7 +291,7 @@ Resources:
         LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
         Environment: !Ref Environment
         Port: !Ref BackendInternalPort
-        TasExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
+        TaskExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
         DatabaseDns: !GetAtt Database.Outputs.DNSName
         DatabaseUser: !Ref DBMasterUsername
         DatabasePassword: !Ref DBMasterUserPassword
@@ -372,54 +372,54 @@ Resources:
 
 #### Frontend Service ####
 
-  # FrontendEcsTaskDefinition:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     Parameters:
-  #       TaskMemory: !Ref TaskMemory
-  #       TaskCpu: !Ref TaskCpu
-  #       SubComponentName: frontend
-  #       ContainerName: !Sub "${ComponentName}-frontend"
-  #       DockerImageName: !Sub "${ComponentName}-frontend"
-  #       DockerImageVersion: !Ref FrontendDockerImageVersion
-  #       ComponentName: !Ref ComponentName
-  #       LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
-  #       TasExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
-  #       Environment: !Ref Environment
-  #       Port: !Ref FrontendInternalPort
-  #       HealthCheckPath: '/register'
-  #       BackendDns: !GetAtt BackendNetwork.Outputs.ElbDnsName
-  #       BackendApiPath: "/api"
-  #     TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
+  FrontendEcsTaskDefinition:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        TaskMemory: !Ref TaskMemory
+        TaskCpu: !Ref TaskCpu
+        SubComponentName: frontend
+        ContainerName: !Sub "${ComponentName}-frontend"
+        DockerImageName: !Sub "${ComponentName}-frontend"
+        DockerImageVersion: !Ref FrontendDockerImageVersion
+        ComponentName: !Ref ComponentName
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        TaskExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
+        Environment: !Ref Environment
+        Port: !Ref FrontendInternalPort
+        HealthCheckPath: '/register'
+        BackendDns: !GetAtt BackendNetwork.Outputs.ElbDnsName
+        BackendApiPath: "/api"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
 
-  # FrontendEcsService:
-  #   Type: AWS::CloudFormation::Stack
-  #   Properties:
-  #     Parameters:
-  #       ComponentName: !Ref ComponentName
-  #       SubComponentName: frontend
-  #       LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
-  #       Cluster: !GetAtt EcsCluster.Outputs.ClusterName
-  #       MinimumHealthyPercent: !Ref MinimumHealthyPercent
-  #       MaximumPercent: !Ref MaximumPercent
-  #       DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
-  #       HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
-  #       LaunchType: !Ref LaunchType
-  #       EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendServicSececurityGroup ]]
-  #       Subnets:
-  #         Fn::Join:
-  #           - ","
-  #           - !FindInMap
-  #             - !FindInMap [AccountEnv, !Ref Environment, Name]
-  #             - !Ref "AWS::Region"
-  #             - PrivateSubnets
-  #       TaskDefinition: !GetAtt FrontendEcsTaskDefinition.Outputs.TaskDefinition
-  #       Environment: !Ref Environment
-  #       DeploymentArch: !Ref DeploymentArch
-  #       Port: !Ref FrontendInternalPort
-  #       TargetGroupArn: !GetAtt FrontendNetwork.Outputs.TargetGroupArn
-  #       ContainerName: !Sub "${ComponentName}-frontend"
-  #     TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-service.yaml"
+  FrontendEcsService:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Parameters:
+        ComponentName: !Ref ComponentName
+        SubComponentName: frontend
+        LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        Cluster: !GetAtt EcsCluster.Outputs.ClusterName
+        MinimumHealthyPercent: !Ref MinimumHealthyPercent
+        MaximumPercent: !Ref MaximumPercent
+        DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
+        HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
+        LaunchType: !Ref LaunchType
+        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendServicSececurityGroup ]]
+        Subnets:
+          Fn::Join:
+            - ","
+            - !FindInMap
+              - !FindInMap [AccountEnv, !Ref Environment, Name]
+              - !Ref "AWS::Region"
+              - PrivateSubnets
+        TaskDefinition: !GetAtt FrontendEcsTaskDefinition.Outputs.TaskDefinition
+        Environment: !Ref Environment
+        DeploymentArch: !Ref DeploymentArch
+        Port: !Ref FrontendInternalPort
+        TargetGroupArn: !GetAtt FrontendNetwork.Outputs.TargetGroupArn
+        ContainerName: !Sub "${ComponentName}-frontend"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-service.yaml"
 
   FrontendNetwork:
     Type: AWS::CloudFormation::Stack

@@ -56,7 +56,7 @@ Parameters:
     Description: The container port
     Default: 4100
 
-  TasExecutionRoleArn:
+  TaskExecutionRoleArn:
     Type: String
     Description: The task execution role ARN
 
@@ -88,7 +88,7 @@ Resources:
       RequiresCompatibilities:
         - "EC2"
         - "FARGATE"
-      ExecutionRoleArn: !Ref TasExecutionRoleArn
+      ExecutionRoleArn: !Ref TaskExecutionRoleArn
       Memory: !Ref TaskMemory
       Cpu: !Ref TaskCpu
      
