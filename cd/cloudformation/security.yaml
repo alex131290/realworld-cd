@@ -57,7 +57,7 @@ Resources:
 
 #### Backend Service security group ####
 
-  BackendServicSececurityGroup:
+  BackendServiceSececurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: 'Enable access to the backend ecs service'
@@ -131,14 +131,14 @@ Resources:
       IpProtocol: tcp
       FromPort: !Ref DbPort
       ToPort: !Ref DbPort
-      SourceSecurityGroupId: !Ref BackendServicSececurityGroup
+      SourceSecurityGroupId: !Ref BackendServiceSececurityGroup
       Description: Allow access to the DB on the DB port to the Backend ECS Service
 
 
   BackendServiceIngressApi:
     Type: 'AWS::EC2::SecurityGroupIngress'
     Properties:
-      GroupId: !Ref BackendServicSececurityGroup
+      GroupId: !Ref BackendServiceSececurityGroup
       IpProtocol: tcp
       FromPort: !Ref BackendServicePort
       ToPort: !Ref BackendServicePort
@@ -198,7 +198,7 @@ Outputs:
   
   BackendServiceSececurityGroup:
     Description: The backend ecs service security group
-    Value: !Ref BackendServicSececurityGroup
+    Value: !Ref BackendServiceSececurityGroup
 
   BackendAlbSecurityGroup:
     Description: The Backend ALB security group
