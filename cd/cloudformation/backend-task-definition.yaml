@@ -101,7 +101,7 @@ Resources:
       RequiresCompatibilities:
         - "EC2"
         - "FARGATE"
-      ExecutionRoleArn: !GetAtt TasExecutionRoleArn
+      ExecutionRoleArn: !Ref TasExecutionRoleArn
       Memory: !Ref TaskMemory
       Cpu: !Ref TaskCpu
      
