@@ -60,9 +60,13 @@ Parameters:
     Type: String
     Description: The task execution role ARN
 
-  BackendUrl:
+  BackendDns:
     Type: String
-    Description: The backend URL
+    Description: The backend DNS
+
+  BackendApiPath:
+    Type: String
+    Description: The backend API path
   
   HealthCheckPath:
     Type: String
@@ -106,7 +110,7 @@ Resources:
           Essential: true
           Environment: 
             - Name: API_ROOT
-              Value: !Ref BackendUrl
+              Value: !Sub "http://${BackendDns}${BackendApiPath}"
           LogConfiguration:
             LogDriver: awslogs
             Options:

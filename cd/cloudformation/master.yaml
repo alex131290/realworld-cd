@@ -388,11 +388,8 @@ Resources:
         Environment: !Ref Environment
         Port: !Ref FrontendInternalPort
         HealthCheckPath: '/register'
-        BackendUrl:
-          Fn::Sub:
-            - "${BackendDns}/api"
-            - BackendDns: 
-                Fn::GetAtt: BackendNetwork.Outputs.ElbDnsName
+        BackendDns: !GetAtt BackendNetwork.Outputs.ElbDnsName
+        BackendApiPath: "/api"
       TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
 
   FrontendEcsService:
