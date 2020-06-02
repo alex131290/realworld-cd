@@ -289,7 +289,6 @@ Resources:
         TaskMemory: !Ref TaskMemory
         TaskCpu: !Ref TaskCpu
         SubComponentName: backend
-        ConfigBucket: !FindInMap [AccountEnv, !Ref Environment, ConfigBucket]
         ContainerName: !Sub "${ComponentName}-backend"
         DockerImageName: !Sub "${ComponentName}-backend"
         DockerImageVersion: !Ref BackendDockerImageVersion
@@ -385,7 +384,6 @@ Resources:
         TaskMemory: !Ref TaskMemory
         TaskCpu: !Ref TaskCpu
         SubComponentName: frontend
-        ConfigBucket: !FindInMap [AccountEnv, !Ref Environment, ConfigBucket]
         ContainerName: !Sub "${ComponentName}-frontend"
         DockerImageName: !Sub "${ComponentName}-frontend"
         DockerImageVersion: !Ref FrontendDockerImageVersion
