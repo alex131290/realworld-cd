@@ -313,7 +313,7 @@ Resources:
         DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
         HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
         LaunchType: !Ref LaunchType
-        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.BackendServicSececurityGroup ]]
+        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.BackendServiceSececurityGroup ]]
         Subnets:
           Fn::Join:
             - ","
@@ -405,7 +405,7 @@ Resources:
         DesiredNumberOfTasks: !Ref DesiredNumberOfTasks
         HealthCheckGracePeriodSeconds: !Ref HealthCheckGracePeriodSeconds
         LaunchType: !Ref LaunchType
-        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendServicSececurityGroup ]]
+        EcsSecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendServiceSecurityGroup ]]
         Subnets:
           Fn::Join:
             - ","
