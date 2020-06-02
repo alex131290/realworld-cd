@@ -389,6 +389,7 @@ Resources:
         DockerImageVersion: !Ref FrontendDockerImageVersion
         ComponentName: !Ref ComponentName
         LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
+        TasExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
         Environment: !Ref Environment
         Port: !Ref FrontendInternalPort
         HealthCheckPath: '/register'
