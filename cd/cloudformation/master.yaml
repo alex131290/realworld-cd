@@ -387,7 +387,7 @@ Resources:
         TaskExecutionRoleArn: !GetAtt Security.Outputs.TaskExecutionRoleArn
         Environment: !Ref Environment
         Port: !Ref FrontendInternalPort
-        HealthCheckPath: '/register'
+        HealthCheckPath: '/'
         BackendDns: !GetAtt BackendNetwork.Outputs.ElbDnsName
         BackendApiPath: "/api"
       TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
@@ -444,7 +444,7 @@ Resources:
             - VPCId
         Environment: !Ref Environment
         LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
-        HealthCheckPath: '/register'
+        HealthCheckPath: '/'
       TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/realworld-network.yaml"
 
   # FrontendEcsAutoScalingPolicy:
