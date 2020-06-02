@@ -396,7 +396,8 @@ Resources:
         BackendUrl:
           Fn::Sub:
             - "${BackendDns}/api"
-            - BackendDns: !GetAtt BackendNetwork.Outputs.ElbDnsName
+            - BackendDns: 
+                Fn::GetAtt: BackendNetwork.Outputs.ElbDnsName
       TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
 
   FrontendEcsService:
