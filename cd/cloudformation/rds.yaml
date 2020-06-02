@@ -26,11 +26,11 @@ Parameters:
     Type: Number
     MinValue: 0
     MaxValue: 35
-    Default: 30
+    Default: 7
 
   DBMasterUsername:
     Description: 'The master user name for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
-    Type: Stringer
+    Type: String
 
   DBMasterUserPassword:
     Description: 'The master password for the DB instance (ignored when DBSnapshotIdentifier is set, value used from snapshot).'
