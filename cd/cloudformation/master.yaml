@@ -275,7 +275,6 @@ Resources:
       Parameters:
         ComponentName: !Ref ComponentName
         Environment: !Ref Environment
-        DeploymentNumber: !Ref DeploymentNumber
         LowerEnv: !FindInMap [EnvironmentToLower, !Ref Environment, env]
       TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/ecs-cluster.yaml"
 
@@ -305,7 +304,7 @@ Resources:
         DatabaseName: !Ref DbName
         DatabasePort: !Ref DbPort
         HealthCheckPath: '/api/'
-      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/${DeploymentNumber}/backend-task-definition.yaml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/backend-task-definition.yaml"
 
   BackendEcsService:
     Type: AWS::CloudFormation::Stack
@@ -342,7 +341,6 @@ Resources:
       Parameters:
         ComponentName: !Ref ComponentName
         SubComponentName: backend
-        DeploymentNumber: !Ref DeploymentNumber
         TargetPort: !Ref BackendInternalPort
         ListenerPort: !Ref BackendExternalPort
         SecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.BackendAlbSecurityGroup ]]
@@ -400,7 +398,7 @@ Resources:
           Fn::Sub:
             - "${BackendDns}/api"
             - BackendDns: !Sub "!GetAtt BackendNetwork.Outputs.ElbDnsName"
-      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/${DeploymentNumber}/frontend-task-definition.yaml"
+      TemplateURL: !Sub "https://s3.amazonaws.com/${InfraS3Bucket}/${ComponentName}/${Environment}/frontend-task-definition.yaml"
 
   FrontendEcsService:
     Type: AWS::CloudFormation::Stack
@@ -437,7 +435,6 @@ Resources:
       Parameters:
         ComponentName: !Ref ComponentName
         SubComponentName: frontend
-        DeploymentNumber: !Ref DeploymentNumber
         TargetPort: !Ref FrontendInternalPort
         ListenerPort: !Ref FrontendExternalPort
         SecurityGroups: !Join [ ",", [!GetAtt Security.Outputs.FrontendAlbSecurityGroup ]]
